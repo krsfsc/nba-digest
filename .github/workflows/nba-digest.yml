@@ -1,0 +1,56 @@
+# .github/workflows/nba-digest.yml
+#
+# Runs the NBA digest daily at 10:00 PM Pacific.
+# The script itself determines the season mode:
+#   - Playoffs: sends nightly with full game coverage
+#   - Regular season: sends nightly with top games
+#   - Offseason: sends weekly (Mondays only) with news roundup
+#
+# GitHub Actions uses UTC, so 10 PM PT = 5 AM UTC (during PDT).
+#
+# Required repository secrets:
+#   ANTHROPIC_API_KEY  - Your Anthropic API key
+#   GMAIL_APP_PASSWORD - Gmail app password
+
+name: NBA Digest
+
+on:
+  schedule:
+    # 2:00 PM UTC = 7:00 AM PDT (Mar-Nov)
+    # During PST (Nov-Mar), this fires at 6:00 AM PT
+    - cron: "0 14 * * *"
+
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install anthropic
+
+      - name: Run digest
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          DIGEST_CACHE_DIR: ./cache
+        run: python nba_digest.py
+
+      - name: Upload cache artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-cache-${{ github.run_id }}
+          path: cache/
+          retention-days: 30
