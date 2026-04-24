@@ -209,7 +209,7 @@ def generate_digest() -> dict:
         try:
             log.info("Calling Claude API (attempt %d/%d)...", attempt, MAX_RETRIES)
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6",
                 max_tokens=4000,
                 tools=[{"type": "web_search_20250305", "name": "web_search"}],
                 messages=[{"role": "user", "content": prompt}],
