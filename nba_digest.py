@@ -110,8 +110,7 @@ DIGEST_PROMPT = """Today is {date_str}. You are generating a structured NBA play
 {reddit_block}
 
 Search for:
-1. "NBA playoff scores results series standings {iso_date}"
-2. "NBA playoff highlights performances injury news {iso_date}"
+1. "NBA playoff scores results standings highlights performances {iso_date}"
 
 Then return ONLY a JSON object (no markdown, no backticks, no preamble) with this exact structure:
 
@@ -658,8 +657,7 @@ OFFSEASON_PROMPT = """Today is {date_str}. You are generating a weekly NBA offse
 {reddit_block}
 
 Search for:
-1. "NBA offseason news trades free agency draft {iso_date}"
-2. "r/nba top posts this week"
+1. "NBA offseason news trades free agency draft highlights {iso_date}"
 
 Return ONLY a JSON object (no markdown, no backticks) with this structure:
 
@@ -689,8 +687,7 @@ REGULAR_SEASON_PROMPT = """Today is {date_str}. You are generating a nightly NBA
 {reddit_block}
 
 Search for:
-1. "NBA scores results standings {iso_date}"
-2. "NBA highlights performances injury news {iso_date}"
+1. "NBA scores results standings highlights performances {iso_date}"
 
 Return ONLY a JSON object (no markdown, no backticks) with this exact structure:
 
