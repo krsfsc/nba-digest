@@ -227,6 +227,13 @@ def generate_digest() -> dict:
             if not raw:
                 raise RuntimeError("Claude returned no text content")
 
+            # Extract JSON object from response (handles narration before/after)
+            start = raw.find("{")
+            end = raw.rfind("}") + 1
+            if start == -1 or end == 0:
+                raise json.JSONDecodeError("No JSON object found", raw, 0)
+            raw = raw[start:end]
+
             digest = json.loads(raw)
             log.info("Digest generated with %d games", len(digest.get("games", [])))
 
@@ -245,12 +252,15 @@ def generate_digest() -> dict:
                 attempt, e, raw[:200] if raw else "empty",
             )
             if attempt < MAX_RETRIES:
-                time.sleep(2 * attempt)  # backoff
+                time.sleep(30 * attempt)
         except Exception as e:
             last_error = e
             log.warning("Attempt %d failed: %s", attempt, e)
             if attempt < MAX_RETRIES:
-                time.sleep(2 * attempt)
+                # Use longer backoff for rate limits
+                backoff = 60 if "429" in str(e) or "rate_limit" in str(e) else 10 * attempt
+                log.info("Waiting %ds before retry...", backoff)
+                time.sleep(backoff)
 
     raise RuntimeError(f"All {MAX_RETRIES} attempts failed. Last error: {last_error}")
 
