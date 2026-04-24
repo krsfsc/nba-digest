@@ -165,6 +165,7 @@ Then return ONLY a JSON object (no markdown, no backticks, no preamble) with thi
 
 Important notes:
 - The digest covers LAST NIGHT'S completed games, not upcoming games. The main_headline and sub_headline should reflect what already happened.
+- HEADLINE ACCURACY: Build the main_headline and sub_headline strictly from the games array you are returning. Every team mentioned in the headline must appear as a winner in the games array. Double-check each team's series_status before writing the headline — do not claim a team "takes the lead" or "leads the series" unless their series_status confirms it.
 - For player_id, use the NBA.com player ID number (the one used at cdn.nba.com/headshots/nba/latest/260x190/PLAYER_ID.png). Look these up accurately.
 - Include ALL games played last night. If no games were played, set games to an empty array and note it in the headline.
 - For active_series, include all series with their current win totals. Each series MUST include "conference": "East" or "conference": "West".
@@ -768,6 +769,7 @@ Return ONLY a JSON object (no markdown, no backticks) with this exact structure:
 
 Important notes:
 - The digest covers LAST NIGHT'S completed games. The main_headline should reflect what already happened.
+- HEADLINE ACCURACY: Every team mentioned in the headline must appear as a winner in the games array. Do not reference outcomes you haven't verified.
 - For series_status during regular season, show the WINNING team's record (e.g. "BOS: 42-12").
 - Include the most notable 3-5 games (skip unremarkable blowouts if there are many games).
 - For player_id, use the NBA.com player ID.
