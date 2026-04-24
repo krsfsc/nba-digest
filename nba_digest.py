@@ -105,7 +105,7 @@ INK = {
 
 # ── Digest Generation ──────────────────────────────────────────────────
 
-DIGEST_PROMPT = """Today is {date_str}. You are generating a structured NBA playoff digest for tonight.
+DIGEST_PROMPT = """Today is {date_str}. You are generating a structured NBA playoff digest covering last night's completed games.
 
 {reddit_block}
 
@@ -136,7 +136,8 @@ Then return ONLY a JSON object (no markdown, no backticks, no preamble) with thi
     }}
   ],
   "active_series": [
-    {{ "team1": "DET", "team1_wins": 1, "team2": "ORL", "team2_wins": 1 }}
+    {{ "conference": "East", "team1": "DET", "team1_wins": 1, "team2": "ORL", "team2_wins": 1 }},
+    {{ "conference": "West", "team1": "OKC", "team1_wins": 2, "team2": "MEM", "team2_wins": 0 }}
   ],
   "recaps": [
     {{
@@ -156,18 +157,20 @@ Then return ONLY a JSON object (no markdown, no backticks, no preamble) with thi
       "context": "in Game 3 win",
       "stats": "33 pts · 5 reb · 11 ast",
       "note": "Dominated from start to finish",
-      "player_id": "1630567"
+      "player_id": "1630567",
+      "highlight_url": "https://www.youtube.com/watch?v=..."
     }}
   ]
 }}
 
 Important notes:
+- The digest covers LAST NIGHT'S completed games, not upcoming games. The main_headline and sub_headline should reflect what already happened.
 - For player_id, use the NBA.com player ID number (the one used at cdn.nba.com/headshots/nba/latest/260x190/PLAYER_ID.png). Look these up accurately.
-- Include ALL games played tonight. If no games were played, set games to an empty array and note it in the headline.
-- For active_series, include all first-round series with their current win totals AFTER tonight's results.
+- Include ALL games played last night. If no games were played, set games to an empty array and note it in the headline.
+- For active_series, include all series with their current win totals. Each series MUST include "conference": "East" or "conference": "West".
 - For recaps, write like a basketball writer — capture momentum shifts, key runs, and what decided the game. Use the mix approach: tight 2-3 sentences for blowouts, narrative 4-6 sentences for close games.
 - For headlines, capture the biggest talking points, controversies, injury news, and r/nba discourse.
-- For standout_performances, pick the 3-5 best individual performances tonight.
+- For standout_performances, pick the 3-5 best individual performances from last night. For highlight_url, search for a real YouTube or NBA.com highlight clip URL for each player. If you can't find one, omit the field.
 - Return ONLY valid JSON. No markdown fences. No explanation text."""
 
 
@@ -348,34 +351,55 @@ def build_email_html(d: dict) -> str:
     <tr><td style="padding:24px 32px;">
         <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
                    color:{INK["textFaint"]}; margin:0 0 16px;
-                   font-family:Helvetica,Arial,sans-serif;">Tonight's results</p>
+                   font-family:Helvetica,Arial,sans-serif;">Last night's results</p>
         {games_html}
     </td></tr>''' if d.get("games") else ""
 
-    # ── Active series (rows of 4) ──
+    # ── Active series grouped by conference ──
     series_list = d.get("active_series", [])
+
+    def _series_conf_block(conf_label, series):
+        rows_html = ""
+        for row_start in range(0, len(series), 4):
+            row_cells = ""
+            chunk = series[row_start:row_start + 4]
+            for sr in chunk:
+                row_cells += f'''
+                    <td style="background:{INK["surface"]}; border-radius:5px;
+                                padding:8px 6px; text-align:center;">
+                        <p style="font-size:12px; font-weight:bold; color:{INK["text"]};
+                                   margin:0; font-family:Helvetica,Arial,sans-serif;">
+                            {sr.get("team1", "")} {sr.get("team1_wins", 0)}</p>
+                        <p style="font-size:12px; color:{INK["textMuted"]};
+                                   margin:1px 0 0; font-family:Helvetica,Arial,sans-serif;">
+                            {sr.get("team2", "")} {sr.get("team2_wins", 0)}</p>
+                    </td>'''
+            row_cells += "<td></td>" * (4 - len(chunk))
+            mb = "8px" if row_start + 4 < len(series) else "0"
+            rows_html += f'''
+                <table width="100%" cellpadding="0" cellspacing="4"
+                       style="margin-bottom:{mb};">
+                    <tr>{row_cells}</tr>
+                </table>'''
+        return f'''
+        <p style="font-size:10px; letter-spacing:2px; text-transform:uppercase;
+                   color:{INK["textFaint"]}; margin:0 0 8px;
+                   font-family:Helvetica,Arial,sans-serif;">{conf_label}</p>
+        {rows_html}'''
+
+    east = [s for s in series_list if s.get("conference", "").lower() == "east"]
+    west = [s for s in series_list if s.get("conference", "").lower() == "west"]
+    other = [s for s in series_list if s.get("conference", "").lower() not in ("east", "west")]
+
     series_rows_html = ""
-    for row_start in range(0, len(series_list), 4):
-        row_cells = ""
-        chunk = series_list[row_start:row_start + 4]
-        for sr in chunk:
-            row_cells += f'''
-                <td style="background:{INK["surface"]}; border-radius:5px;
-                            padding:8px 6px; text-align:center;">
-                    <p style="font-size:12px; font-weight:bold; color:{INK["text"]};
-                               margin:0; font-family:Helvetica,Arial,sans-serif;">
-                        {sr.get("team1", "")} {sr.get("team1_wins", 0)}</p>
-                    <p style="font-size:12px; color:{INK["textMuted"]};
-                               margin:1px 0 0; font-family:Helvetica,Arial,sans-serif;">
-                        {sr.get("team2", "")} {sr.get("team2_wins", 0)}</p>
-                </td>'''
-        row_cells += "<td></td>" * (4 - len(chunk))
-        mb = "8px" if row_start + 4 < len(series_list) else "0"
-        series_rows_html += f'''
-            <table width="100%" cellpadding="0" cellspacing="4"
-                   style="margin-bottom:{mb};">
-                <tr>{row_cells}</tr>
-            </table>'''
+    if east:
+        series_rows_html += _series_conf_block("Eastern Conference", east)
+    if west:
+        if east:
+            series_rows_html += f'<div style="margin-top:16px;"></div>'
+        series_rows_html += _series_conf_block("Western Conference", west)
+    if other:
+        series_rows_html += _series_conf_block("Playoffs", other)
 
     series_section = f'''
     <tr><td style="padding:20px 32px;">
@@ -463,6 +487,12 @@ def build_email_html(d: dict) -> str:
                                        margin:4px 0 0; font-style:italic;
                                        font-family:Helvetica,Arial,sans-serif;">
                                 {p.get("note", "")}</p>
+                            {f'''<a href="{p["highlight_url"]}" style="display:inline-block; margin-top:8px;
+                                       font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+                                       color:{INK["textMuted"]}; text-decoration:none;
+                                       border:1px solid {INK["border"]}; border-radius:3px;
+                                       padding:3px 8px; font-family:Helvetica,Arial,sans-serif;">
+                                ▶ Highlights</a>''' if p.get("highlight_url") else ""}
                         </td>
                     </tr>
                 </table>
@@ -682,7 +712,7 @@ Include 4-6 headlines covering the week's biggest stories: trades, free agency,
 draft news, coaching changes, r/nba discourse, and anything fans are talking about.
 Return ONLY valid JSON."""
 
-REGULAR_SEASON_PROMPT = """Today is {date_str}. You are generating a nightly NBA regular season digest.
+REGULAR_SEASON_PROMPT = """Today is {date_str}. You are generating a nightly NBA regular season digest covering last night's completed games.
 
 {reddit_block}
 
@@ -737,6 +767,7 @@ Return ONLY a JSON object (no markdown, no backticks) with this exact structure:
 }}
 
 Important notes:
+- The digest covers LAST NIGHT'S completed games. The main_headline should reflect what already happened.
 - For series_status during regular season, show the WINNING team's record (e.g. "BOS: 42-12").
 - Include the most notable 3-5 games (skip unremarkable blowouts if there are many games).
 - For player_id, use the NBA.com player ID.
