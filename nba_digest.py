@@ -784,6 +784,122 @@ def get_prompt_for_mode(mode: str) -> str:
         return DIGEST_PROMPT
 
 
+# ── Blog / GitHub Pages ────────────────────────────────────────────────
+
+DOCS_DIR = Path(os.environ.get("DOCS_DIR", "docs"))
+
+
+def build_page_html(digest: dict, html_body: str, iso_date: str) -> str:
+    """Wrap the email HTML in a minimal page shell with nav."""
+    prev_date = None
+    next_date = None
+    all_pages = sorted(DOCS_DIR.glob("????-??-??.html"))
+    dates = [p.stem for p in all_pages]
+    if iso_date in dates:
+        idx = dates.index(iso_date)
+        if idx > 0:
+            prev_date = dates[idx - 1]
+        if idx < len(dates) - 1:
+            next_date = dates[idx + 1]
+
+    nav_links = []
+    if prev_date:
+        nav_links.append(f'<a href="{prev_date}.html" style="color:{INK["textMuted"]}; text-decoration:none;">← {prev_date}</a>')
+    nav_links.append(f'<a href="index.html" style="color:{INK["textMuted"]}; text-decoration:none;">All digests</a>')
+    if next_date:
+        nav_links.append(f'<a href="{next_date}.html" style="color:{INK["textMuted"]}; text-decoration:none;">{next_date} →</a>')
+
+    nav_html = f'''
+    <div style="max-width:632px; margin:0 auto; padding:16px 16px 0;
+                display:flex; justify-content:space-between; align-items:center;
+                font-size:11px; font-family:Helvetica,Arial,sans-serif;
+                color:{INK["textMuted"]};">
+        {"&nbsp;&nbsp;&nbsp;".join(nav_links)}
+    </div>'''
+
+    inner = html_body.replace(
+        '<body style="margin:0; padding:0; background-color:#e8e3db;">',
+        f'<body style="margin:0; padding:0; background-color:#e8e3db;">{nav_html}'
+    )
+    return inner
+
+
+def save_page(digest: dict, html_body: str, iso_date: str):
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    page_html = build_page_html(digest, html_body, iso_date)
+    page_file = DOCS_DIR / f"{iso_date}.html"
+    page_file.write_text(page_html)
+    log.info("Saved page to %s", page_file)
+
+
+def build_index_html() -> str:
+    entries = []
+    for cache_file in sorted(DOCS_DIR.glob("????-??-??.html"), reverse=True):
+        iso = cache_file.stem
+        json_file = CACHE_DIR / f"digest-{iso}.json"
+        headline = ""
+        round_label = ""
+        if json_file.exists():
+            try:
+                d = json.loads(json_file.read_text())
+                headline = d.get("main_headline", "")
+                round_label = d.get("round", "")
+            except Exception:
+                pass
+        entries.append((iso, headline, round_label))
+
+    rows_html = ""
+    for iso, headline, round_label in entries:
+        rows_html += f'''
+        <a href="{iso}.html" style="display:block; text-decoration:none;
+                  border-bottom:1px solid {INK["border"]}; padding:14px 0;">
+            <p style="font-size:10px; letter-spacing:2px; text-transform:uppercase;
+                       color:{INK["textFaint"]}; margin:0 0 4px;
+                       font-family:Helvetica,Arial,sans-serif;">{iso} &middot; {round_label}</p>
+            <p style="font-size:15px; color:{INK["text"]}; margin:0; line-height:1.4;
+                       font-family:Georgia,'Times New Roman',serif;">{headline or "NBA Digest"}</p>
+        </a>'''
+
+    return f'''<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NBA Digest Archive</title>
+</head>
+<body style="margin:0; padding:0; background-color:#e8e3db;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#e8e3db;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table width="600" cellpadding="0" cellspacing="0"
+               style="background-color:{INK["bg"]}; border-radius:8px; overflow:hidden;">
+          <tr><td style="padding:32px 32px 8px; text-align:center;">
+            <p style="font-size:11px; letter-spacing:3px; text-transform:uppercase;
+                       color:{INK["textFaint"]}; margin:0 0 6px;
+                       font-family:Helvetica,Arial,sans-serif;">Archive</p>
+            <h1 style="font-size:26px; font-weight:normal; color:{INK["text"]};
+                        margin:0; font-family:Georgia,'Times New Roman',serif;">
+                NBA Digest</h1>
+            <div style="width:40px; height:2px; background:{INK["text"]}; margin:14px auto;"></div>
+          </td></tr>
+          <tr><td style="padding:8px 32px 32px;">
+            {rows_html if rows_html else '<p style="color:#888; font-family:Helvetica,Arial,sans-serif; font-size:13px;">No digests yet.</p>'}
+          </td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>'''
+
+
+def update_index():
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    index_file = DOCS_DIR / "index.html"
+    index_file.write_text(build_index_html())
+    log.info("Updated index at %s", index_file)
+
+
 # ── Main ───────────────────────────────────────────────────────────────
 
 def main():
@@ -808,6 +924,8 @@ def main():
         # Restore
         DIGEST_PROMPT = original_prompt
 
+        iso_date = now.strftime("%Y-%m-%d")
+
         # Adjust subject line
         mode_labels = {
             "playoffs": "Playoff Digest",
@@ -821,6 +939,10 @@ def main():
         text_body = build_plaintext(digest)
 
         send_email(subject, html_body, text_body)
+
+        save_page(digest, html_body, iso_date)
+        update_index()
+
         log.info("Done!")
 
     except Exception as e:
