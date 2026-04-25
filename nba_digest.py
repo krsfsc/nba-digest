@@ -1037,10 +1037,11 @@ def fetch_playoff_series() -> list[dict]:
             abbrs = sorted(team_data.keys())
             key = tuple(abbrs)
             if key not in series_map:
-                t1, t2 = abbrs[0], abbrs[1]
-                s1 = PLAYOFF_SEEDS_2026.get(t1, 99)
-                s2 = PLAYOFF_SEEDS_2026.get(t2, 99)
-                top_seed = min(s1, s2)
+                a, b = abbrs[0], abbrs[1]
+                sa, sb = PLAYOFF_SEEDS_2026.get(a, 99), PLAYOFF_SEEDS_2026.get(b, 99)
+                # Always put higher seed (lower number) on the left
+                t1, t2 = (a, b) if sa <= sb else (b, a)
+                top_seed = min(sa, sb)
                 series_map[key] = {
                     "team1": t1,
                     "team1_wins": team_data[t1]["wins"],
