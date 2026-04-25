@@ -136,8 +136,8 @@ Then return ONLY a JSON object (no markdown, no backticks, no preamble) with thi
     }}
   ],
   "active_series": [
-    {{ "conference": "East", "team1": "DET", "team1_wins": 1, "team2": "ORL", "team2_wins": 1 }},
-    {{ "conference": "West", "team1": "OKC", "team1_wins": 2, "team2": "MEM", "team2_wins": 0 }}
+    {{ "conference": "East", "top_seed": 4, "team1": "DET", "team1_wins": 1, "team2": "ORL", "team2_wins": 1 }},
+    {{ "conference": "West", "top_seed": 1, "team1": "OKC", "team1_wins": 2, "team2": "MEM", "team2_wins": 0 }}
   ],
   "recaps": [
     {{
@@ -169,7 +169,7 @@ Important notes:
 - HEADLINE ACCURACY: Build the main_headline and sub_headline strictly from the games array you are returning. Every team mentioned in the headline must appear as a winner in the games array. Double-check each team's series_status before writing the headline — do not claim a team "takes the lead" or "leads the series" unless their series_status confirms it.
 - For player_id, use the NBA.com player ID number (the one used at cdn.nba.com/headshots/nba/latest/260x190/PLAYER_ID.png). Look these up accurately.
 - Include ALL games played last night. If no games were played, set games to an empty array and note it in the headline.
-- For active_series, include all series with their current win totals. Each series MUST include "conference": "East" or "conference": "West".
+- For active_series, include all series with their current win totals. Each series MUST include "conference": "East" or "conference": "West" and "top_seed": N where N is the seed number of the higher-seeded team in the matchup (e.g. 1 for a 1v8 series, 2 for a 2v7 series). This is used to sort the bracket display in seed order.
 - For recaps, write like a basketball writer — capture momentum shifts, key runs, and what decided the game. Use the mix approach: tight 2-3 sentences for blowouts, narrative 4-6 sentences for close games.
 - For headlines, capture the biggest talking points, controversies, injury news, and r/nba discourse.
 - For standout_performances, pick the 3-5 best individual performances from last night. For highlight_url, search for a real YouTube or NBA.com highlight clip URL for each player. If you can't find one, omit the field.
@@ -390,8 +390,8 @@ def build_email_html(d: dict, iso_date: str = "", tonight: list = None) -> str:
                    font-family:Helvetica,Arial,sans-serif;">{conf_label}</p>
         {rows_html}'''
 
-    east = [s for s in series_list if s.get("conference", "").lower() == "east"]
-    west = [s for s in series_list if s.get("conference", "").lower() == "west"]
+    east = sorted([s for s in series_list if s.get("conference", "").lower() == "east"], key=lambda s: s.get("top_seed", 99))
+    west = sorted([s for s in series_list if s.get("conference", "").lower() == "west"], key=lambda s: s.get("top_seed", 99))
     other = [s for s in series_list if s.get("conference", "").lower() not in ("east", "west")]
 
     series_rows_html = ""
@@ -906,6 +906,18 @@ def build_page_html(digest: dict, html_body: str, iso_date: str) -> str:
     return inner
 
 
+# Playoff seed lookup — used to sort bracket display in correct order.
+# top_seed comes from the digest JSON (Claude fills it); this map is a fallback.
+PLAYOFF_SEEDS_2026 = {
+    # West (1-8)
+    "OKC": 1, "SA": 2, "SAS": 2, "DEN": 3, "LAL": 4,
+    "HOU": 5, "MIN": 6, "POR": 7, "PHX": 8,
+    # East (1-8)
+    "CLE": 1, "BOS": 2, "ORL": 3, "DET": 4,
+    "ATL": 5, "NY": 6, "NYK": 6, "PHI": 7, "TOR": 8,
+}
+
+
 def fetch_tonights_games() -> list[dict]:
     """Fetch tonight's scheduled NBA playoff games from ESPN scoreboard.
     Returns list of dicts with team names, game time, and series context.
@@ -1026,6 +1038,9 @@ def fetch_playoff_series() -> list[dict]:
             key = tuple(abbrs)
             if key not in series_map:
                 t1, t2 = abbrs[0], abbrs[1]
+                s1 = PLAYOFF_SEEDS_2026.get(t1, 99)
+                s2 = PLAYOFF_SEEDS_2026.get(t2, 99)
+                top_seed = min(s1, s2)
                 series_map[key] = {
                     "team1": t1,
                     "team1_wins": team_data[t1]["wins"],
@@ -1035,6 +1050,7 @@ def fetch_playoff_series() -> list[dict]:
                     "team2_wins": team_data[t2]["wins"],
                     "team2_color": team_data[t2]["color"],
                     "team2_seed": team_data[t2]["seed"],
+                    "top_seed": top_seed,
                     "conference": "",
                 }
 
@@ -1193,8 +1209,14 @@ def build_index_html() -> str:
             for s in digest_series_list
         ]
 
-    east_s = [s for s in espn_series if s.get("conference", "").lower() == "east"]
-    west_s = [s for s in espn_series if s.get("conference", "").lower() == "west"]
+    east_s = sorted(
+        [s for s in espn_series if s.get("conference", "").lower() == "east"],
+        key=lambda s: s.get("top_seed", 99)
+    )
+    west_s = sorted(
+        [s for s in espn_series if s.get("conference", "").lower() == "west"],
+        key=lambda s: s.get("top_seed", 99)
+    )
 
     def _pips(wins: int, total: int = 4) -> str:
         parts = []
