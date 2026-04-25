@@ -861,36 +861,102 @@ def save_page(digest: dict, html_body: str, iso_date: str):
 def build_index_html() -> str:
     from itertools import groupby
 
+    # Collect all entries
+    all_pages = sorted(DOCS_DIR.glob("????-??-??.html"), reverse=True)
     entries = []
-    for cache_file in sorted(DOCS_DIR.glob("????-??-??.html"), reverse=True):
+    for cache_file in all_pages:
         iso = cache_file.stem
         json_file = CACHE_DIR / f"digest-{iso}.json"
         headline = ""
         round_label = ""
+        digest_data = None
         if json_file.exists():
             try:
-                d = json.loads(json_file.read_text())
-                headline = d.get("main_headline", "")
-                round_label = d.get("round", "")
+                digest_data = json.loads(json_file.read_text())
+                headline = digest_data.get("main_headline", "")
+                round_label = digest_data.get("round", "")
             except Exception:
                 pass
-        month_key = iso[:7]  # "2026-04"
-        entries.append((month_key, iso, headline, round_label))
+        month_key = iso[:7]
+        entries.append((month_key, iso, headline, round_label, digest_data))
 
-    body_html = ""
+    # ── Hero: most recent digest ──
+    hero_html = ""
+    if entries:
+        _, latest_iso, latest_headline, latest_round, latest_data = entries[0]
+        latest_day = datetime.strptime(latest_iso, "%Y-%m-%d").strftime("%A, %B %-d")
+        sub = latest_data.get("sub_headline", "") if latest_data else ""
+
+        # Game score tiles
+        games_html = ""
+        if latest_data:
+            for g in latest_data.get("games", []):
+                games_html += f'''
+                <div style="background:{INK["surface"]}; border-radius:5px;
+                             padding:10px 14px; margin-bottom:8px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="font-size:14px; font-weight:bold; color:{INK["text"]};
+                                        font-family:Georgia,serif;">
+                                {g.get("winner_abbr","")} {g.get("winner_name","")}
+                                <span style="font-size:10px; font-weight:normal; font-style:italic;
+                                              color:{INK["textMuted"]}; padding-left:6px;
+                                              font-family:Helvetica,Arial,sans-serif;">
+                                    {g.get("series_status","")}</span>
+                            </td>
+                            <td style="text-align:right; font-size:17px; font-weight:bold;
+                                        color:{INK["text"]}; font-family:Georgia,serif;">
+                                {g.get("winner_score","")}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-size:14px; color:{INK["textMuted"]};
+                                        font-family:Georgia,serif; padding-top:2px;">
+                                {g.get("loser_abbr","")} {g.get("loser_name","")}</td>
+                            <td style="text-align:right; font-size:17px; color:{INK["textMuted"]};
+                                        font-family:Georgia,serif; padding-top:2px;">
+                                {g.get("loser_score","")}</td>
+                        </tr>
+                    </table>
+                </div>'''
+
+        hero_html = f'''
+          <tr><td style="padding:32px 32px 0;">
+            <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+                       color:{INK["textFaint"]}; margin:0 0 4px;
+                       font-family:Helvetica,Arial,sans-serif;">
+                {latest_day} &middot; {latest_round}</p>
+            <h2 style="font-size:22px; font-weight:normal; color:{INK["text"]};
+                        margin:0 0 8px; line-height:1.3;
+                        font-family:Georgia,'Times New Roman',serif;">
+                {latest_headline or "NBA Digest"}</h2>
+            {f'<p style="font-size:14px; color:{INK["textMuted"]}; margin:0 0 16px; font-style:italic; line-height:1.5; font-family:Georgia,serif;">{sub}</p>' if sub else ""}
+            {games_html}
+            <a href="{latest_iso}.html"
+               style="display:inline-block; margin-top:12px; font-size:12px;
+                       letter-spacing:1px; text-transform:uppercase; text-decoration:none;
+                       color:{INK["text"]}; border-bottom:1px solid {INK["text"]};
+                       padding-bottom:2px; font-family:Helvetica,Arial,sans-serif;">
+                Read full digest &#8594;</a>
+          </td></tr>
+          <tr><td style="padding:20px 32px 0;">
+            <div style="height:1px; background:{INK["border"]};"></div>
+          </td></tr>'''
+
+    # ── Archive list ──
+    archive_html = ""
     if not entries:
-        body_html = '<p style="color:#888; font-family:Helvetica,Arial,sans-serif; font-size:13px;">No digests yet.</p>'
+        archive_html = '<p style="color:#888; font-family:Helvetica,Arial,sans-serif; font-size:13px;">No digests yet.</p>'
     else:
         for month_key, group in groupby(entries, key=lambda e: e[0]):
             month_label = datetime.strptime(month_key, "%Y-%m").strftime("%B %Y")
-            body_html += f'''
+            archive_html += f'''
             <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
                        color:{INK["textFaint"]}; margin:24px 0 8px;
                        font-family:Helvetica,Arial,sans-serif; border-bottom:1px solid {INK["border"]};
                        padding-bottom:6px;">{month_label}</p>'''
-            for _, iso, headline, round_label in group:
+            for _, iso, headline, round_label, _ in group:
                 day_label = datetime.strptime(iso, "%Y-%m-%d").strftime("%a, %b %-d")
-                body_html += f'''
+                archive_html += f'''
                 <a href="{iso}.html" style="display:flex; justify-content:space-between;
                           align-items:baseline; text-decoration:none; padding:10px 0;
                           border-bottom:1px solid {INK["surface"]};">
@@ -913,7 +979,7 @@ def build_index_html() -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NBA Digest Archive</title>
+<title>NBA Digest</title>
 </head>
 <body style="margin:0; padding:0; background-color:#e8e3db;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#e8e3db;">
@@ -921,17 +987,21 @@ def build_index_html() -> str:
       <td align="center" style="padding:32px 16px;">
         <table width="600" cellpadding="0" cellspacing="0"
                style="background-color:{INK["bg"]}; border-radius:8px; overflow:hidden;">
-          <tr><td style="padding:32px 32px 8px; text-align:center;">
+          <tr><td style="padding:28px 32px 16px; text-align:center;">
             <p style="font-size:11px; letter-spacing:3px; text-transform:uppercase;
                        color:{INK["textFaint"]}; margin:0 0 6px;
-                       font-family:Helvetica,Arial,sans-serif;">Archive</p>
-            <h1 style="font-size:26px; font-weight:normal; color:{INK["text"]};
+                       font-family:Helvetica,Arial,sans-serif;">Nightly briefing</p>
+            <h1 style="font-size:28px; font-weight:normal; color:{INK["text"]};
                         margin:0; font-family:Georgia,'Times New Roman',serif;">
                 NBA Digest</h1>
-            <div style="width:40px; height:2px; background:{INK["text"]}; margin:14px auto;"></div>
+            <div style="width:40px; height:2px; background:{INK["text"]}; margin:14px auto 0;"></div>
           </td></tr>
-          <tr><td style="padding:0 32px 32px;">
-            {body_html}
+          {hero_html}
+          <tr><td style="padding:8px 32px 32px;">
+            <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+                       color:{INK["textFaint"]}; margin:16px 0 0;
+                       font-family:Helvetica,Arial,sans-serif;">All issues</p>
+            {archive_html}
           </td></tr>
         </table>
       </td>
