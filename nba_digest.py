@@ -850,6 +850,84 @@ def build_page_html(digest: dict, html_body: str, iso_date: str) -> str:
     return inner
 
 
+def fetch_playoff_series() -> list[dict]:
+    """Fetch real-time playoff series standings from ESPN scoreboard.
+    Scans up to 7 days back to find all active series (handles rest days).
+    Returns list of series dicts with team colors, seeds, and win totals.
+    Falls back to empty list on any error.
+    """
+    from datetime import timedelta
+
+    series_map: dict[tuple, dict] = {}
+    today = datetime.now()
+
+    for days_back in range(7):
+        target = today - timedelta(days=days_back)
+        date_str = target.strftime("%Y%m%d")
+        url = (
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
+            f"/scoreboard?seasontype=3&dates={date_str}"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "NBADigest/2.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode())
+        except Exception as exc:
+            log.debug("ESPN scoreboard %s: %s", date_str, exc)
+            continue
+
+        for event in data.get("events", []):
+            comp = (event.get("competitions") or [{}])[0]
+            series = comp.get("series")
+            if not series:
+                continue
+            competitors = comp.get("competitors", [])
+            if len(competitors) != 2:
+                continue
+
+            team_data: dict[str, dict] = {}
+            for c in competitors:
+                team = c.get("team", {})
+                abbr = team.get("abbreviation", "")
+                if not abbr:
+                    continue
+                wins = 0
+                for sc in series.get("competitors", []):
+                    if sc.get("id") == team.get("id"):
+                        wins = int(sc.get("wins", 0) or 0)
+                        break
+                raw_color = (team.get("color") or "8a8070").lstrip("#")
+                seed_val = c.get("curatedRank", {}).get("current")
+                team_data[abbr] = {
+                    "color": "#" + raw_color,
+                    "seed": seed_val if seed_val and str(seed_val) != "?" else None,
+                    "wins": wins,
+                }
+
+            if len(team_data) != 2:
+                continue
+
+            abbrs = sorted(team_data.keys())
+            key = tuple(abbrs)
+            if key not in series_map:
+                t1, t2 = abbrs[0], abbrs[1]
+                series_map[key] = {
+                    "team1": t1,
+                    "team1_wins": team_data[t1]["wins"],
+                    "team1_color": team_data[t1]["color"],
+                    "team1_seed": team_data[t1]["seed"],
+                    "team2": t2,
+                    "team2_wins": team_data[t2]["wins"],
+                    "team2_color": team_data[t2]["color"],
+                    "team2_seed": team_data[t2]["seed"],
+                    "conference": "",
+                }
+
+    result = list(series_map.values())
+    log.info("Fetched %d playoff series from ESPN", len(result))
+    return result
+
+
 def save_page(digest: dict, iso_date: str):
     # Day pages omit active_series — it lives on the main index instead
     digest_no_series = {**digest, "active_series": []}
@@ -945,55 +1023,108 @@ def build_index_html() -> str:
             <div style="height:1px; background:{INK["border"]};"></div>
           </td></tr>'''
 
-    # ── Playoff standings from latest digest ──
+    # ── Playoff standings (ESPN live + digest fallback) ──
     standings_html = ""
-    if entries and entries[0][4]:
-        series_list = entries[0][4].get("active_series", [])
-        east = [s for s in series_list if s.get("conference", "").lower() == "east"]
-        west = [s for s in series_list if s.get("conference", "").lower() == "west"]
 
-        def _conf_table(conf_label, series):
-            if not series:
-                return ""
-            rows = ""
-            for s in series:
-                t1, w1 = s.get("team1", ""), s.get("team1_wins", 0)
-                t2, w2 = s.get("team2", ""), s.get("team2_wins", 0)
-                # Bold the leader
-                t1_style = f"font-weight:bold; color:{INK['text']}" if w1 > w2 else f"color:{INK['textMuted']}"
-                t2_style = f"font-weight:bold; color:{INK['text']}" if w2 > w1 else f"color:{INK['textMuted']}"
-                tied_note = f'<span style="font-size:10px; color:{INK["textFaint"]}; font-family:Helvetica,Arial,sans-serif;"> tied</span>' if w1 == w2 else ""
-                rows += f'''
-                <tr>
-                    <td style="padding:7px 0; border-bottom:1px solid {INK["surface"]};
-                                font-size:13px; font-family:Helvetica,Arial,sans-serif; {t1_style};">
-                        {t1}</td>
-                    <td style="padding:7px 8px; border-bottom:1px solid {INK["surface"]};
-                                text-align:center; font-size:15px; font-weight:bold;
-                                color:{INK["text"]}; font-family:Georgia,serif;">
-                        {w1}–{w2}{tied_note}</td>
-                    <td style="padding:7px 0; border-bottom:1px solid {INK["surface"]};
-                                text-align:right; font-size:13px; font-family:Helvetica,Arial,sans-serif; {t2_style};">
-                        {t2}</td>
-                </tr>'''
-            return f'''
-            <p style="font-size:10px; letter-spacing:2px; text-transform:uppercase;
-                       color:{INK["textFaint"]}; margin:0 0 6px;
-                       font-family:Helvetica,Arial,sans-serif;">{conf_label}</p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
-                {rows}
-            </table>'''
+    espn_series = fetch_playoff_series()
 
-        conf_blocks = _conf_table("Eastern Conference", east) + _conf_table("Western Conference", west)
-        if conf_blocks:
-            standings_html = f'''
-          <tr><td style="padding:20px 32px 0;">
-            <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
-                       color:{INK["textFaint"]}; margin:0 0 12px;
-                       font-family:Helvetica,Arial,sans-serif;">Playoff picture</p>
-            {conf_blocks}
-            <div style="height:1px; background:{INK["border"]};"></div>
-          </td></tr>'''
+    digest_series_list = entries[0][4].get("active_series", []) if entries and entries[0][4] else []
+    conf_map: dict[frozenset, str] = {}
+    for s in digest_series_list:
+        key = frozenset({s.get("team1", ""), s.get("team2", "")})
+        conf_map[key] = s.get("conference", "")
+    for s in espn_series:
+        if not s.get("conference"):
+            s["conference"] = conf_map.get(frozenset({s["team1"], s["team2"]}), "")
+
+    if not espn_series:
+        espn_series = [
+            {
+                "team1": s.get("team1", ""), "team1_wins": s.get("team1_wins", 0),
+                "team1_color": "", "team1_seed": None,
+                "team2": s.get("team2", ""), "team2_wins": s.get("team2_wins", 0),
+                "team2_color": "", "team2_seed": None,
+                "conference": s.get("conference", ""),
+            }
+            for s in digest_series_list
+        ]
+
+    east_s = [s for s in espn_series if s.get("conference", "").lower() == "east"]
+    west_s = [s for s in espn_series if s.get("conference", "").lower() == "west"]
+
+    def _pips(wins: int, total: int = 4) -> str:
+        parts = []
+        for i in range(total):
+            if i < wins:
+                parts.append('<span style="font-size:10px; line-height:1;">🏀</span>')
+            else:
+                parts.append(
+                    f'<span style="font-size:12px; line-height:1; color:{INK["border"]}; opacity:0.7;">○</span>'
+                )
+        return "".join(parts)
+
+    def _seed_span(val, side: str = "left") -> str:
+        if not val or str(val) in ("?", "0", "None", ""):
+            return ""
+        margin = "margin-right:5px;" if side == "left" else "margin-left:5px;"
+        return (
+            f'<span style="font-size:9px; color:{INK["textGhost"]}; '
+            f'font-family:monospace; {margin}">#{val}</span>'
+        )
+
+    def _series_row_html(s: dict) -> str:
+        t1, w1 = s["team1"], s["team1_wins"]
+        t2, w2 = s["team2"], s["team2_wins"]
+        c1 = s.get("team1_color") or INK["border"]
+        c2 = s.get("team2_color") or INK["border"]
+        border_color = c1 if w1 >= w2 else c2
+        t1_weight = "bold" if w1 > w2 else "normal"
+        t2_weight = "bold" if w2 > w1 else "normal"
+        return f'''
+        <div style="display:flex; align-items:center; padding:9px 0 9px 10px;
+                    border-left:3px solid {border_color}; margin-bottom:3px;
+                    border-bottom:1px solid {INK["surface"]};">
+          <div style="flex:1; display:flex; align-items:center;">
+            {_seed_span(s.get("team1_seed"), "left")}
+            <span style="font-size:13px; font-weight:{t1_weight}; color:{INK["text"]};
+                          font-family:Helvetica,Arial,sans-serif; letter-spacing:0.3px;
+                          min-width:30px; margin-right:7px;">{t1}</span>
+            <span style="display:flex; gap:2px; align-items:center;">{_pips(w1)}</span>
+          </div>
+          <div style="padding:0 10px; font-size:13px; font-weight:bold; color:{INK["textMuted"]};
+                       font-family:Georgia,serif; white-space:nowrap;">{w1}–{w2}</div>
+          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end;">
+            <span style="display:flex; gap:2px; align-items:center; margin-right:7px;">{_pips(w2)}</span>
+            <span style="font-size:13px; font-weight:{t2_weight}; color:{INK["text"]};
+                          font-family:Helvetica,Arial,sans-serif; letter-spacing:0.3px;
+                          min-width:30px; text-align:right;">{t2}</span>
+            {_seed_span(s.get("team2_seed"), "right")}
+          </div>
+        </div>'''
+
+    def _conf_block(label: str, series: list) -> str:
+        if not series:
+            return ""
+        rows = "".join(_series_row_html(s) for s in series)
+        return f'''
+        <div style="margin-top:18px;">
+          <div style="font-size:10px; letter-spacing:3px; text-transform:uppercase;
+                       color:{INK["text"]}; font-family:Helvetica,Arial,sans-serif;
+                       border-top:2px solid {INK["text"]}; padding:6px 0 6px 10px;
+                       margin-bottom:4px;">{label}</div>
+          {rows}
+        </div>'''
+
+    conf_html = _conf_block("Eastern Conference", east_s) + _conf_block("Western Conference", west_s)
+    if conf_html.strip():
+        standings_html = f'''
+      <tr><td style="padding:20px 32px 0;">
+        <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+                   color:{INK["textFaint"]}; margin:0 0 0;
+                   font-family:Helvetica,Arial,sans-serif;">Playoff picture</p>
+        {conf_html}
+        <div style="height:1px; background:{INK["border"]}; margin-top:20px;"></div>
+      </td></tr>'''
 
     # ── Archive list ──
     archive_html = ""
