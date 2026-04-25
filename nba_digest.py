@@ -274,7 +274,7 @@ def _divider() -> str:
     </td></tr>'''
 
 
-def build_email_html(d: dict) -> str:
+def build_email_html(d: dict, iso_date: str = "", tonight: list = None) -> str:
     """Build the full e-ink styled HTML email from structured digest data."""
 
     masthead = f'''
@@ -508,9 +508,45 @@ def build_email_html(d: dict) -> str:
         {perfs_html}
     </td></tr>''' if d.get("standout_performances") else ""
 
+    # ── Tonight's games ──
+    tonight_html = ""
+    if tonight:
+        rows = ""
+        for g in tonight:
+            rows += f'''
+            <div style="display:flex; justify-content:space-between; align-items:baseline;
+                         padding:8px 0; border-bottom:1px solid {INK["surface"]};">
+                <span style="font-size:14px; color:{INK["text"]};
+                              font-family:Georgia,'Times New Roman',serif;">
+                    {g["away_abbr"]} <span style="color:{INK["textFaint"]};">at</span> {g["home_abbr"]}</span>
+                <span style="font-size:11px; color:{INK["textMuted"]};
+                              font-family:Helvetica,Arial,sans-serif; text-align:right;">
+                    {g["time"]}
+                    {f'<span style="display:block; font-size:10px; color:{INK["textFaint"]};">{g["series"]}</span>' if g.get("series") else ""}
+                </span>
+            </div>'''
+        tonight_html = f'''
+    <tr><td style="padding:24px 32px;">
+        <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+                   color:{INK["textFaint"]}; margin:0 0 12px;
+                   font-family:Helvetica,Arial,sans-serif;">Tonight's games</p>
+        {rows}
+    </td></tr>'''
+
+    online_link = ""
+    if iso_date:
+        page_url = f"https://krsfsc.github.io/nba-digest/{iso_date}.html"
+        online_link = (
+            f'<a href="{page_url}" style="font-size:10px; letter-spacing:1.5px;'
+            f' text-transform:uppercase; color:{INK["textGhost"]}; text-decoration:none;'
+            f' border-bottom:1px solid {INK["border"]}; padding-bottom:1px;'
+            f' font-family:Helvetica,Arial,sans-serif;">View online &#8594;</a><br><br>'
+        )
+
     footer = f'''
     <tr><td style="padding:20px 32px; text-align:center;
                     border-top:1px solid {INK["border"]};">
+        {online_link}
         <p style="font-size:10px; letter-spacing:2px; text-transform:uppercase;
                    color:{INK["textGhost"]}; margin:0;
                    font-family:Helvetica,Arial,sans-serif;">
@@ -529,6 +565,8 @@ def build_email_html(d: dict) -> str:
         sections += [headlines_section, _divider()]
     if perfs_section:
         sections += [perfs_section]
+    if tonight_html:
+        sections += [_divider(), tonight_html]
     sections.append(footer)
 
     rows = "\n".join(sections)
@@ -848,6 +886,65 @@ def build_page_html(digest: dict, html_body: str, iso_date: str) -> str:
         f'<body style="margin:0; padding:0; background-color:#e8e3db;">{nav_html}'
     )
     return inner
+
+
+def fetch_tonights_games() -> list[dict]:
+    """Fetch tonight's scheduled NBA playoff games from ESPN scoreboard.
+    Returns list of dicts with team names, game time, and series context.
+    Falls back to empty list on any error.
+    """
+    url = ("https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
+           "/scoreboard?seasontype=3")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "NBADigest/2.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception as exc:
+        log.warning("ESPN tonight fetch failed: %s", exc)
+        return []
+
+    games = []
+    for event in data.get("events", []):
+        comp = (event.get("competitions") or [{}])[0]
+        status = comp.get("status", {})
+        state = status.get("type", {}).get("state", "")
+        if state != "pre":
+            continue
+
+        competitors = comp.get("competitors", [])
+        if len(competitors) != 2:
+            continue
+
+        away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[0])
+        home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[1])
+
+        series = comp.get("series", {})
+        series_summary = status.get("type", {}).get("shortDetail", "") or event.get("shortName", "")
+
+        # Build series record string from series competitors
+        series_str = ""
+        if series:
+            sc = series.get("competitors", [])
+            if len(sc) == 2:
+                a_wins = next((x.get("wins", 0) for x in sc if x.get("id") == away.get("team", {}).get("id")), 0)
+                h_wins = next((x.get("wins", 0) for x in sc if x.get("id") == home.get("team", {}).get("id")), 0)
+                series_str = f"Series tied {a_wins}-{h_wins}" if a_wins == h_wins else (
+                    f"{away['team']['abbreviation']} leads {a_wins}-{h_wins}" if a_wins > h_wins
+                    else f"{home['team']['abbreviation']} leads {h_wins}-{a_wins}"
+                )
+
+        games.append({
+            "away_abbr": away.get("team", {}).get("abbreviation", ""),
+            "away_name": away.get("team", {}).get("displayName", ""),
+            "home_abbr": home.get("team", {}).get("abbreviation", ""),
+            "home_name": home.get("team", {}).get("displayName", ""),
+            "time": status.get("type", {}).get("shortDetail", "TBD"),
+            "series": series_str,
+            "venue": (comp.get("venue") or {}).get("fullName", ""),
+        })
+
+    log.info("Found %d game(s) tonight", len(games))
+    return games
 
 
 def fetch_playoff_series() -> list[dict]:
@@ -1258,7 +1355,8 @@ def main():
         label = mode_labels.get(mode, "Digest")
         subject = f"\U0001f3c0 NBA {label} — {date_short}"
 
-        html_body = build_email_html(digest)
+        tonight = fetch_tonights_games() if mode == "playoffs" else []
+        html_body = build_email_html(digest, iso_date=iso_date, tonight=tonight)
         text_body = build_plaintext(digest)
 
         send_email(subject, html_body, text_body)
