@@ -958,6 +958,14 @@ def build_index_html() -> str:
                 round_label = digest_data.get("round", "")
             except Exception:
                 pass
+        if not headline:
+            import re
+            try:
+                m = re.search(r'<h2[^>]*>([^<]+)</h2>', cache_file.read_text())
+                if m:
+                    headline = m.group(1).strip()
+            except Exception:
+                pass
         month_key = iso[:7]
         entries.append((month_key, iso, headline, round_label, digest_data))
 
@@ -1192,8 +1200,8 @@ def build_index_html() -> str:
                 NBA Digest</h1>
             <div style="width:40px; height:2px; background:{INK["text"]}; margin:14px auto 0;"></div>
           </td></tr>
-          {hero_html}
           {standings_html}
+          {hero_html}
           <tr><td style="padding:8px 32px 32px;">
             <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
                        color:{INK["textFaint"]}; margin:16px 0 0;
