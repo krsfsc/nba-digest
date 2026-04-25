@@ -1026,6 +1026,23 @@ def build_index_html() -> str:
     # ── Playoff standings (ESPN live + digest fallback) ──
     standings_html = ""
 
+    # Hardcoded conference membership as reliable fallback
+    EAST_TEAMS = {
+        "ATL","BOS","BKN","CHA","CHI","CLE","DET","IND","MIA","MIL",
+        "NY","NYK","ORL","PHI","TOR","WAS",
+    }
+    WEST_TEAMS = {
+        "DAL","DEN","GSW","HOU","LAC","LAL","MEM","MIN","NOP","OKC",
+        "PHX","POR","SA","SAS","SAC","UTA",
+    }
+
+    def _infer_conf(team1: str, team2: str) -> str:
+        if team1 in EAST_TEAMS or team2 in EAST_TEAMS:
+            return "East"
+        if team1 in WEST_TEAMS or team2 in WEST_TEAMS:
+            return "West"
+        return ""
+
     espn_series = fetch_playoff_series()
 
     digest_series_list = entries[0][4].get("active_series", []) if entries and entries[0][4] else []
@@ -1033,9 +1050,13 @@ def build_index_html() -> str:
     for s in digest_series_list:
         key = frozenset({s.get("team1", ""), s.get("team2", "")})
         conf_map[key] = s.get("conference", "")
+
     for s in espn_series:
         if not s.get("conference"):
-            s["conference"] = conf_map.get(frozenset({s["team1"], s["team2"]}), "")
+            s["conference"] = (
+                conf_map.get(frozenset({s["team1"], s["team2"]}), "")
+                or _infer_conf(s["team1"], s["team2"])
+            )
 
     if not espn_series:
         espn_series = [
@@ -1056,21 +1077,12 @@ def build_index_html() -> str:
         parts = []
         for i in range(total):
             if i < wins:
-                parts.append('<span style="font-size:10px; line-height:1;">🏀</span>')
+                parts.append('<span style="font-size:9px; line-height:1;">🏀</span>')
             else:
                 parts.append(
-                    f'<span style="font-size:12px; line-height:1; color:{INK["border"]}; opacity:0.7;">○</span>'
+                    f'<span style="font-size:10px; line-height:1; color:{INK["border"]};">○</span>'
                 )
         return "".join(parts)
-
-    def _seed_span(val, side: str = "left") -> str:
-        if not val or str(val) in ("?", "0", "None", ""):
-            return ""
-        margin = "margin-right:5px;" if side == "left" else "margin-left:5px;"
-        return (
-            f'<span style="font-size:9px; color:{INK["textGhost"]}; '
-            f'font-family:monospace; {margin}">#{val}</span>'
-        )
 
     def _series_row_html(s: dict) -> str:
         t1, w1 = s["team1"], s["team1_wins"]
@@ -1080,51 +1092,51 @@ def build_index_html() -> str:
         border_color = c1 if w1 >= w2 else c2
         t1_weight = "bold" if w1 > w2 else "normal"
         t2_weight = "bold" if w2 > w1 else "normal"
-        return f'''
-        <div style="display:flex; align-items:center; padding:9px 0 9px 10px;
-                    border-left:3px solid {border_color}; margin-bottom:3px;
-                    border-bottom:1px solid {INK["surface"]};">
-          <div style="flex:1; display:flex; align-items:center;">
-            {_seed_span(s.get("team1_seed"), "left")}
-            <span style="font-size:13px; font-weight:{t1_weight}; color:{INK["text"]};
-                          font-family:Helvetica,Arial,sans-serif; letter-spacing:0.3px;
-                          min-width:30px; margin-right:7px;">{t1}</span>
-            <span style="display:flex; gap:2px; align-items:center;">{_pips(w1)}</span>
-          </div>
-          <div style="padding:0 10px; font-size:13px; font-weight:bold; color:{INK["textMuted"]};
-                       font-family:Georgia,serif; white-space:nowrap;">{w1}–{w2}</div>
-          <div style="flex:1; display:flex; align-items:center; justify-content:flex-end;">
-            <span style="display:flex; gap:2px; align-items:center; margin-right:7px;">{_pips(w2)}</span>
-            <span style="font-size:13px; font-weight:{t2_weight}; color:{INK["text"]};
-                          font-family:Helvetica,Arial,sans-serif; letter-spacing:0.3px;
-                          min-width:30px; text-align:right;">{t2}</span>
-            {_seed_span(s.get("team2_seed"), "right")}
-          </div>
-        </div>'''
+        return (
+            f'<div style="display:flex; align-items:center; padding:5px 0 5px 7px;'
+            f' border-left:3px solid {border_color}; margin-bottom:2px;'
+            f' border-bottom:1px solid {INK["surface"]};">'
+            f'<span style="font-size:12px; font-weight:{t1_weight}; color:{INK["text"]};'
+            f' font-family:Helvetica,Arial,sans-serif; min-width:26px; margin-right:5px;">{t1}</span>'
+            f'<span style="font-size:9px; letter-spacing:1px; margin-right:5px;">{_pips(w1)}</span>'
+            f'<span style="font-size:11px; font-weight:bold; color:{INK["textMuted"]};'
+            f' font-family:Georgia,serif; white-space:nowrap; margin:0 4px;">{w1}–{w2}</span>'
+            f'<span style="font-size:9px; letter-spacing:1px; margin-left:5px;">{_pips(w2)}</span>'
+            f'<span style="font-size:12px; font-weight:{t2_weight}; color:{INK["text"]};'
+            f' font-family:Helvetica,Arial,sans-serif; min-width:26px;'
+            f' text-align:right; margin-left:5px;">{t2}</span>'
+            f'</div>'
+        )
 
-    def _conf_block(label: str, series: list) -> str:
+    def _conf_col(label: str, series: list) -> str:
         if not series:
             return ""
         rows = "".join(_series_row_html(s) for s in series)
-        return f'''
-        <div style="margin-top:18px;">
-          <div style="font-size:10px; letter-spacing:3px; text-transform:uppercase;
-                       color:{INK["text"]}; font-family:Helvetica,Arial,sans-serif;
-                       border-top:2px solid {INK["text"]}; padding:6px 0 6px 10px;
-                       margin-bottom:4px;">{label}</div>
-          {rows}
-        </div>'''
+        return (
+            f'<div style="font-size:9px; letter-spacing:2.5px; text-transform:uppercase;'
+            f' color:{INK["text"]}; font-family:Helvetica,Arial,sans-serif;'
+            f' border-top:2px solid {INK["text"]}; padding:4px 0 4px 7px;'
+            f' margin-bottom:3px;">{label}</div>'
+            f'{rows}'
+        )
 
-    conf_html = _conf_block("Eastern Conference", east_s) + _conf_block("Western Conference", west_s)
-    if conf_html.strip():
-        standings_html = f'''
-      <tr><td style="padding:20px 32px 0;">
-        <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
-                   color:{INK["textFaint"]}; margin:0 0 0;
-                   font-family:Helvetica,Arial,sans-serif;">Playoff picture</p>
-        {conf_html}
-        <div style="height:1px; background:{INK["border"]}; margin-top:20px;"></div>
-      </td></tr>'''
+    if east_s or west_s:
+        east_col = _conf_col("East", east_s)
+        west_col = _conf_col("West", west_s)
+        standings_html = (
+            f'<tr><td style="padding:16px 32px 0;">'
+            f'<p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;'
+            f' color:{INK["textFaint"]}; margin:0 0 10px;'
+            f' font-family:Helvetica,Arial,sans-serif;">Playoff picture</p>'
+            f'<table width="100%" cellpadding="0" cellspacing="0">'
+            f'<tr>'
+            f'<td style="width:50%; vertical-align:top; padding-right:10px;">{east_col}</td>'
+            f'<td style="width:50%; vertical-align:top; padding-left:10px;'
+            f' border-left:1px solid {INK["border"]};">{west_col}</td>'
+            f'</tr></table>'
+            f'<div style="height:1px; background:{INK["border"]}; margin-top:14px;"></div>'
+            f'</td></tr>'
+        )
 
     # ── Archive list ──
     archive_html = ""
