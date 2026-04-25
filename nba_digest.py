@@ -850,7 +850,10 @@ def build_page_html(digest: dict, html_body: str, iso_date: str) -> str:
     return inner
 
 
-def save_page(digest: dict, html_body: str, iso_date: str):
+def save_page(digest: dict, iso_date: str):
+    # Day pages omit active_series — it lives on the main index instead
+    digest_no_series = {**digest, "active_series": []}
+    html_body = build_email_html(digest_no_series)
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     page_html = build_page_html(digest, html_body, iso_date)
     page_file = DOCS_DIR / f"{iso_date}.html"
@@ -942,6 +945,56 @@ def build_index_html() -> str:
             <div style="height:1px; background:{INK["border"]};"></div>
           </td></tr>'''
 
+    # ── Playoff standings from latest digest ──
+    standings_html = ""
+    if entries and entries[0][4]:
+        series_list = entries[0][4].get("active_series", [])
+        east = [s for s in series_list if s.get("conference", "").lower() == "east"]
+        west = [s for s in series_list if s.get("conference", "").lower() == "west"]
+
+        def _conf_table(conf_label, series):
+            if not series:
+                return ""
+            rows = ""
+            for s in series:
+                t1, w1 = s.get("team1", ""), s.get("team1_wins", 0)
+                t2, w2 = s.get("team2", ""), s.get("team2_wins", 0)
+                # Bold the leader
+                t1_style = f"font-weight:bold; color:{INK['text']}" if w1 > w2 else f"color:{INK['textMuted']}"
+                t2_style = f"font-weight:bold; color:{INK['text']}" if w2 > w1 else f"color:{INK['textMuted']}"
+                tied_note = f'<span style="font-size:10px; color:{INK["textFaint"]}; font-family:Helvetica,Arial,sans-serif;"> tied</span>' if w1 == w2 else ""
+                rows += f'''
+                <tr>
+                    <td style="padding:7px 0; border-bottom:1px solid {INK["surface"]};
+                                font-size:13px; font-family:Helvetica,Arial,sans-serif; {t1_style};">
+                        {t1}</td>
+                    <td style="padding:7px 8px; border-bottom:1px solid {INK["surface"]};
+                                text-align:center; font-size:15px; font-weight:bold;
+                                color:{INK["text"]}; font-family:Georgia,serif;">
+                        {w1}–{w2}{tied_note}</td>
+                    <td style="padding:7px 0; border-bottom:1px solid {INK["surface"]};
+                                text-align:right; font-size:13px; font-family:Helvetica,Arial,sans-serif; {t2_style};">
+                        {t2}</td>
+                </tr>'''
+            return f'''
+            <p style="font-size:10px; letter-spacing:2px; text-transform:uppercase;
+                       color:{INK["textFaint"]}; margin:0 0 6px;
+                       font-family:Helvetica,Arial,sans-serif;">{conf_label}</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+                {rows}
+            </table>'''
+
+        conf_blocks = _conf_table("Eastern Conference", east) + _conf_table("Western Conference", west)
+        if conf_blocks:
+            standings_html = f'''
+          <tr><td style="padding:20px 32px 0;">
+            <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+                       color:{INK["textFaint"]}; margin:0 0 12px;
+                       font-family:Helvetica,Arial,sans-serif;">Playoff picture</p>
+            {conf_blocks}
+            <div style="height:1px; background:{INK["border"]};"></div>
+          </td></tr>'''
+
     # ── Archive list ──
     archive_html = ""
     if not entries:
@@ -997,6 +1050,7 @@ def build_index_html() -> str:
             <div style="width:40px; height:2px; background:{INK["text"]}; margin:14px auto 0;"></div>
           </td></tr>
           {hero_html}
+          {standings_html}
           <tr><td style="padding:8px 32px 32px;">
             <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
                        color:{INK["textFaint"]}; margin:16px 0 0;
@@ -1058,7 +1112,7 @@ def main():
 
         send_email(subject, html_body, text_body)
 
-        save_page(digest, html_body, iso_date)
+        save_page(digest, iso_date)
         update_index()
 
         log.info("Done!")
