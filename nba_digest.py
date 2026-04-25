@@ -792,32 +792,56 @@ DOCS_DIR = Path(os.environ.get("DOCS_DIR", "docs"))
 
 
 def build_page_html(digest: dict, html_body: str, iso_date: str) -> str:
-    """Wrap the email HTML in a minimal page shell with nav."""
-    prev_date = None
-    next_date = None
+    """Wrap the email HTML in a page shell with full navigation bar."""
     all_pages = sorted(DOCS_DIR.glob("????-??-??.html"))
     dates = [p.stem for p in all_pages]
-    if iso_date in dates:
-        idx = dates.index(iso_date)
-        if idx > 0:
-            prev_date = dates[idx - 1]
-        if idx < len(dates) - 1:
-            next_date = dates[idx + 1]
 
-    nav_links = []
-    if prev_date:
-        nav_links.append(f'<a href="{prev_date}.html" style="color:{INK["textMuted"]}; text-decoration:none;">← {prev_date}</a>')
-    nav_links.append(f'<a href="index.html" style="color:{INK["textMuted"]}; text-decoration:none;">All digests</a>')
-    if next_date:
-        nav_links.append(f'<a href="{next_date}.html" style="color:{INK["textMuted"]}; text-decoration:none;">{next_date} →</a>')
+    # Include current date even if page doesn't exist yet (first run)
+    if iso_date not in dates:
+        dates = sorted(dates + [iso_date])
+
+    idx = dates.index(iso_date)
+    prev_date = dates[idx - 1] if idx > 0 else None
+    next_date = dates[idx + 1] if idx < len(dates) - 1 else None
+
+    prev_btn = (
+        f'<a href="{prev_date}.html" style="display:inline-flex; align-items:center; gap:6px;'
+        f' text-decoration:none; color:{INK["textMuted"]}; font-size:12px;'
+        f' font-family:Helvetica,Arial,sans-serif; padding:6px 12px;'
+        f' border:1px solid {INK["border"]}; border-radius:4px;">&#8592; Previous</a>'
+        if prev_date else
+        f'<span style="padding:6px 12px; font-size:12px; color:{INK["border"]};'
+        f' font-family:Helvetica,Arial,sans-serif; border:1px solid {INK["border"]};'
+        f' border-radius:4px;">&#8592; Previous</span>'
+    )
+    next_btn = (
+        f'<a href="{next_date}.html" style="display:inline-flex; align-items:center; gap:6px;'
+        f' text-decoration:none; color:{INK["textMuted"]}; font-size:12px;'
+        f' font-family:Helvetica,Arial,sans-serif; padding:6px 12px;'
+        f' border:1px solid {INK["border"]}; border-radius:4px;">Next &#8594;</a>'
+        if next_date else
+        f'<span style="padding:6px 12px; font-size:12px; color:{INK["border"]};'
+        f' font-family:Helvetica,Arial,sans-serif; border:1px solid {INK["border"]};'
+        f' border-radius:4px;">Next &#8594;</span>'
+    )
 
     nav_html = f'''
-    <div style="max-width:632px; margin:0 auto; padding:16px 16px 0;
-                display:flex; justify-content:space-between; align-items:center;
-                font-size:11px; font-family:Helvetica,Arial,sans-serif;
-                color:{INK["textMuted"]};">
-        {"&nbsp;&nbsp;&nbsp;".join(nav_links)}
-    </div>'''
+    <div style="background-color:#e8e3db; padding:12px 16px;">
+      <div style="max-width:632px; margin:0 auto; display:flex;
+                  justify-content:space-between; align-items:center;">
+        {prev_btn}
+        <a href="index.html" style="text-decoration:none; text-align:center;">
+          <p style="font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+                     color:{INK["textFaint"]}; margin:0 0 2px;
+                     font-family:Helvetica,Arial,sans-serif;">Archive</p>
+          <p style="font-size:13px; color:{INK["text"]}; margin:0;
+                     font-family:Georgia,'Times New Roman',serif;">NBA Digest</p>
+        </a>
+        {next_btn}
+      </div>
+    </div>
+    <div style="max-width:632px; margin:0 auto; height:1px;
+                background:{INK["border"]};"></div>'''
 
     inner = html_body.replace(
         '<body style="margin:0; padding:0; background-color:#e8e3db;">',
@@ -835,6 +859,8 @@ def save_page(digest: dict, html_body: str, iso_date: str):
 
 
 def build_index_html() -> str:
+    from itertools import groupby
+
     entries = []
     for cache_file in sorted(DOCS_DIR.glob("????-??-??.html"), reverse=True):
         iso = cache_file.stem
@@ -848,19 +874,39 @@ def build_index_html() -> str:
                 round_label = d.get("round", "")
             except Exception:
                 pass
-        entries.append((iso, headline, round_label))
+        month_key = iso[:7]  # "2026-04"
+        entries.append((month_key, iso, headline, round_label))
 
-    rows_html = ""
-    for iso, headline, round_label in entries:
-        rows_html += f'''
-        <a href="{iso}.html" style="display:block; text-decoration:none;
-                  border-bottom:1px solid {INK["border"]}; padding:14px 0;">
-            <p style="font-size:10px; letter-spacing:2px; text-transform:uppercase;
-                       color:{INK["textFaint"]}; margin:0 0 4px;
-                       font-family:Helvetica,Arial,sans-serif;">{iso} &middot; {round_label}</p>
-            <p style="font-size:15px; color:{INK["text"]}; margin:0; line-height:1.4;
-                       font-family:Georgia,'Times New Roman',serif;">{headline or "NBA Digest"}</p>
-        </a>'''
+    body_html = ""
+    if not entries:
+        body_html = '<p style="color:#888; font-family:Helvetica,Arial,sans-serif; font-size:13px;">No digests yet.</p>'
+    else:
+        for month_key, group in groupby(entries, key=lambda e: e[0]):
+            month_label = datetime.strptime(month_key, "%Y-%m").strftime("%B %Y")
+            body_html += f'''
+            <p style="font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+                       color:{INK["textFaint"]}; margin:24px 0 8px;
+                       font-family:Helvetica,Arial,sans-serif; border-bottom:1px solid {INK["border"]};
+                       padding-bottom:6px;">{month_label}</p>'''
+            for _, iso, headline, round_label in group:
+                day_label = datetime.strptime(iso, "%Y-%m-%d").strftime("%a, %b %-d")
+                body_html += f'''
+                <a href="{iso}.html" style="display:flex; justify-content:space-between;
+                          align-items:baseline; text-decoration:none; padding:10px 0;
+                          border-bottom:1px solid {INK["surface"]};">
+                    <span>
+                        <span style="font-size:15px; color:{INK["text"]}; line-height:1.4;
+                                      font-family:Georgia,'Times New Roman',serif;">
+                            {headline or "NBA Digest"}</span>
+                        <span style="display:block; font-size:10px; letter-spacing:1px;
+                                      text-transform:uppercase; color:{INK["textFaint"]};
+                                      margin-top:3px; font-family:Helvetica,Arial,sans-serif;">
+                            {round_label}</span>
+                    </span>
+                    <span style="font-size:11px; color:{INK["textGhost"]}; white-space:nowrap;
+                                  margin-left:16px; font-family:Helvetica,Arial,sans-serif;">
+                        {day_label}</span>
+                </a>'''
 
     return f'''<!DOCTYPE html>
 <html>
@@ -884,8 +930,8 @@ def build_index_html() -> str:
                 NBA Digest</h1>
             <div style="width:40px; height:2px; background:{INK["text"]}; margin:14px auto;"></div>
           </td></tr>
-          <tr><td style="padding:8px 32px 32px;">
-            {rows_html if rows_html else '<p style="color:#888; font-family:Helvetica,Arial,sans-serif; font-size:13px;">No digests yet.</p>'}
+          <tr><td style="padding:0 32px 32px;">
+            {body_html}
           </td></tr>
         </table>
       </td>
