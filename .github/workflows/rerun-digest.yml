@@ -1,0 +1,65 @@
+# .github/workflows/rerun-digest.yml
+#
+# Manual workflow to re-run digest generation for a specific date.
+# Use this to backfill missing cache files or regenerate a digest.
+#
+# To trigger:
+#   1. Go to Actions tab in GitHub
+#   2. Select "Re-run Digest" workflow
+#   3. Click "Run workflow"
+#   4. Enter the date (YYYY-MM-DD, optional; defaults to yesterday)
+
+name: Re-run Digest
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to generate digest for (YYYY-MM-DD, defaults to yesterday)'
+        required: false
+        default: ''
+
+jobs:
+  rerun-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install anthropic
+
+      - name: Run digest re-gen
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          DIGEST_CACHE_DIR: ./cache
+          DOCS_DIR: ./docs
+        run: |
+          python rerun_digest.py ${{ github.event.inputs.date }}
+
+      - name: Publish to GitHub Pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add cache/ docs/
+          git diff --cached --quiet || git commit -m "digest: re-run $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Upload cache artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rerun-digest-cache-${{ github.run_id }}
+          path: cache/
+          retention-days: 30
