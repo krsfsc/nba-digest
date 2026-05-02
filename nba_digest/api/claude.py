@@ -22,7 +22,7 @@ class ClaudeClient:
         max_retries: int = 3,
         rate_limit_backoff: int = 180,
         json_parse_backoff: int = 90,
-        max_tokens: int = 2000,
+        max_tokens: int = 4000,
     ):
         """
         Initialize Claude client.
