@@ -1,0 +1,26 @@
+{
+  "date": "2026-05-02",
+  "round": "Second Round",
+  "main_headline": "Unable to retrieve verified NBA playoff results for the night of May 1, 2026. No confirmed game data is available from live sources at this time.",
+  "sub_headline": "Data unavailable \u2014 search query could not return verified real-time results for 2026 NBA Playoff scores.",
+  "games": [],
+  "active_series": [],
+  "recaps": [
+    {
+      "title": "Data Retrieval Notice",
+      "body": "The structured NBA playoff digest for games played on the night of Friday, May 1, 2026 could not be generated. The requested web search for 'NBA playoff scores results standings highlights performances 2026-05-02' did not return verified, real-time data. Reddit's r/nba discussion feed was also unavailable for fan sentiment capture. To avoid presenting fabricated scores, standings, statistics, or player performances, this digest has been left unpopulated. Please verify results directly via NBA.com, ESPN, or the ESPN App for accurate box scores and series standings."
+    }
+  ],
+  "headlines": [
+    {
+      "bold_lead": "LIVE DATA UNAVAILABLE:",
+      "body": "This digest was generated on May 2, 2026, but no reliable search results confirming completed playoff games from May 1, 2026 could be retrieved. All game fields have been intentionally left empty to prevent fabrication of scores or statistics."
+    },
+    {
+      "bold_lead": "RECOMMENDED ACTION:",
+      "body": "Visit NBA.com/playoffs, ESPN.com, or the official NBA App for confirmed Second Round results, series standings, box scores, and highlight reels from last night's action."
+    }
+  ],
+  "standout_performances": [],
+  "plays_of_night_url": null
+}
