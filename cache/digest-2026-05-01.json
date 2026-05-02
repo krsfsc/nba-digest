@@ -1,0 +1,47 @@
+{
+  "date": "2026-05-02",
+  "round": "Second Round",
+  "main_headline": "Real-time NBA playoff data for the night of May 1, 2026 was unavailable due to a Reddit/search fetch failure. No verified game results could be retrieved.",
+  "sub_headline": "Data pipeline error prevented live score and performance ingestion for last night's playoff action.",
+  "games": [],
+  "active_series": [
+    {
+      "conference": "East",
+      "top_seed": 1,
+      "team1": "Unknown \u2013 Data Unavailable",
+      "team1_wins": 0,
+      "team2": "Unknown \u2013 Data Unavailable",
+      "team2_wins": 0
+    },
+    {
+      "conference": "West",
+      "top_seed": 1,
+      "team1": "Unknown \u2013 Data Unavailable",
+      "team1_wins": 0,
+      "team2": "Unknown \u2013 Data Unavailable",
+      "team2_wins": 0
+    }
+  ],
+  "recaps": [
+    {
+      "title": "Data Fetch Failure \u2013 No Recap Available",
+      "body": "The scheduled search query for 'NBA playoff scores results standings highlights performances 2026-05-02' returned no usable results. Reddit (r/nba) was also unavailable for fan sentiment scraping. As a result, no game recaps can be responsibly generated. Publishing fabricated scores or stats would risk misinforming readers. Please retry once live data sources are restored or consult NBA.com, ESPN, or the official NBA app for verified results."
+    }
+  ],
+  "headlines": [
+    {
+      "bold_lead": "FETCH FAILED:",
+      "body": "Search and Reddit sources were both unavailable for the night of May 1, 2026. No live playoff data was ingested."
+    },
+    {
+      "bold_lead": "NO FABRICATION POLICY:",
+      "body": "This digest does not manufacture scores, stats, or narratives. All fields requiring verified game data have been left empty pending a successful data retrieval."
+    },
+    {
+      "bold_lead": "RECOMMENDED ACTION:",
+      "body": "Visit NBA.com/playoffs, ESPN, or r/nba directly to access last night's box scores, highlights, and series standings."
+    }
+  ],
+  "standout_performances": [],
+  "plays_of_night_url": null
+}
