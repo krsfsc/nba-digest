@@ -213,7 +213,7 @@ def generate_digest() -> dict:
             log.info("Calling Claude API (attempt %d/%d)...", attempt, MAX_RETRIES)
             response = client.messages.create(
                 model="claude-sonnet-4-6",
-                max_tokens=3000,
+                max_tokens=2000,
                 tools=[{"type": "web_search_20250305", "name": "web_search"}],
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -255,13 +255,14 @@ def generate_digest() -> dict:
                 attempt, e, raw[:200] if raw else "empty",
             )
             if attempt < MAX_RETRIES:
-                time.sleep(60 * attempt)
+                # Wait longer after JSON parse failure to avoid rate limit
+                time.sleep(90 * attempt)
         except Exception as e:
             last_error = e
             log.warning("Attempt %d failed: %s", attempt, e)
             if attempt < MAX_RETRIES:
-                # Rate limit: wait 2 min so the 30k TPM bucket fully resets
-                backoff = 120 if "429" in str(e) or "rate_limit" in str(e) else 10 * attempt
+                # Rate limit: wait 3 min so the rolling 30k TPM bucket fully resets
+                backoff = 180 if "429" in str(e) or "rate_limit" in str(e) else 10 * attempt
                 log.info("Waiting %ds before retry...", backoff)
                 time.sleep(backoff)
 
