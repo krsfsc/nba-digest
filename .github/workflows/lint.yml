@@ -1,0 +1,37 @@
+name: Lint & Type Check
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black flake8 mypy pytest pydantic anthropic
+
+      - name: Format check (black)
+        run: black --check nba_digest/ tests/ rerun_digest.py
+
+      - name: Lint (flake8)
+        run: flake8 nba_digest/ tests/ rerun_digest.py --max-line-length=100
+
+      - name: Type check (mypy)
+        run: mypy nba_digest/ --strict
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Test coverage
+        run: pytest tests/ --cov=nba_digest --cov-report=term-missing
