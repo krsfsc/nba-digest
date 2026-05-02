@@ -22,7 +22,7 @@ class ClaudeClient:
         max_retries: int = 3,
         rate_limit_backoff: int = 180,
         json_parse_backoff: int = 90,
-        max_tokens: int = 4000,
+        max_tokens: int = 6000,
     ):
         """
         Initialize Claude client.
@@ -67,7 +67,9 @@ class ClaudeClient:
                 response = self.client.messages.create(
                     model=self.model,
                     max_tokens=self.max_tokens,
-                    tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                    # Web search can cause mixed content (search results + JSON)
+                    # Disable for cleaner JSON responses. Claude has knowledge cutoff
+                    # and can generate digests without live search.
                     messages=[{"role": "user", "content": prompt}],
                 )
 

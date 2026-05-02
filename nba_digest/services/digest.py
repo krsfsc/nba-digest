@@ -118,16 +118,53 @@ class DigestService:
 Search for:
 1. "NBA playoff scores results standings highlights performances {iso_date}"
 
-Then return ONLY a JSON object with:
-- date, round, main_headline, sub_headline
-- games (array of completed games with scores/stats)
-- active_series (all first-round matchups with current standings)
-- recaps (narrative descriptions of key games)
-- headlines (talking points and news items)
-- standout_performances (best individual performances)
-- plays_of_night_url (YouTube highlights)
+IMPORTANT: Return ONLY a valid JSON object (no markdown, no explanation, just raw JSON).
 
-Return ONLY valid JSON, no explanation."""
+JSON Schema (required fields):
+{{
+  "date": "string (today's date)",
+  "round": "string (playoff round name)",
+  "main_headline": "string (1-2 sentence main story)",
+  "sub_headline": "string (supporting headline)",
+  "games": [
+    {{
+      "winner_abbr": "string",
+      "winner_name": "string",
+      "winner_score": number,
+      "loser_abbr": "string",
+      "loser_name": "string",
+      "loser_score": number,
+      "game_number": number (1-7),
+      "venue": "string",
+      "series_status": "string",
+      "pts_leader": "string",
+      "reb_leader": "string",
+      "ast_leader": "string"
+    }}
+  ],
+  "active_series": [
+    {{
+      "conference": "East" or "West",
+      "top_seed": number (1-8),
+      "team1": "string",
+      "team1_wins": number (0-4),
+      "team2": "string",
+      "team2_wins": number (0-4)
+    }}
+  ],
+  "recaps": [
+    {{"title": "string", "body": "string"}}
+  ],
+  "headlines": [
+    {{"bold_lead": "string", "body": "string"}}
+  ],
+  "standout_performances": [
+    {{"name": "string", "context": "string", "stats": "string", "note": "string", "player_id": "string"}}
+  ],
+  "plays_of_night_url": "string or null"
+}}
+
+Return valid JSON only. No markdown, no explanation."""
 
         elif mode == "regular_season":
             return """Generate an NBA regular season digest for {date}.
