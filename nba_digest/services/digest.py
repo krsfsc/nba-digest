@@ -46,6 +46,8 @@ class DigestService:
         Returns:
             Digest model with full game data and analysis
         """
+        from datetime import datetime
+
         log.info("Starting digest generation (mode: %s)", season_mode or "auto")
 
         # Auto-detect season mode if not provided
@@ -70,8 +72,13 @@ class DigestService:
                 "to capture fan sentiment and discourse."
             )
 
-        # Build full prompt
-        full_prompt = prompt.format(reddit_block=reddit_block)
+        # Format dates for prompt
+        now = datetime.now()
+        date_str = now.strftime("%A, %B %d, %Y")
+        iso_date = now.strftime("%Y-%m-%d")
+
+        # Build full prompt with all required placeholders
+        full_prompt = prompt.format(date=date_str, iso_date=iso_date, reddit_block=reddit_block)
 
         # Generate digest via Claude (with retries)
         digest = self.claude.generate_digest(full_prompt)
