@@ -2,11 +2,10 @@
 """
 Standalone script to re-run digest generation for a specific date without sending email.
 Usage: python3 rerun_digest.py [YYYY-MM-DD]
-Default: yesterday's date (April 26)
+Default: yesterday's date
 """
 import sys
 import os
-import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -15,15 +14,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 os.chdir(Path(__file__).parent)
 
-# Import after path setup
-from nba_digest import (
-    generate_digest, 
-    build_email_html, 
-    build_plaintext,
-    CACHE_DIR,
-    DOCS_DIR,
-    update_index,
-)
+# Import after path setup - use new modular structure
+from nba_digest.config import Config
+from nba_digest.services.digest import DigestService
+from nba_digest.services.storage import StorageService
+from nba_digest.builders.email import EmailBuilder
+from nba_digest.builders.page import PageBuilder
+from nba_digest.builders.index import IndexBuilder
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -40,44 +37,50 @@ def main():
     else:
         # Default to yesterday
         target_date = datetime.now() - timedelta(days=1)
-    
+
     iso_date = target_date.strftime("%Y-%m-%d")
     date_short = target_date.strftime("%A, %B %-d")
-    
+
     log.info(f"Generating digest for {iso_date} ({date_short})...")
-    
+
     try:
-        # Generate digest
-        digest = generate_digest()
-        
+        # Load config from environment
+        config = Config.from_env()
+
+        # Generate digest using new service
+        digest_svc = DigestService(config)
+        digest = digest_svc.generate()
+
         if not digest:
             log.error("Failed to generate digest")
             sys.exit(1)
-        
-        log.info(f"Generated digest with {len(digest.get('games', []))} games")
-        
-        # Save cache JSON
-        cache_file = CACHE_DIR / f"digest-{iso_date}.json"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(json.dumps(digest, indent=2))
-        log.info(f"Saved cache: {cache_file}")
-        
-        # Save HTML page
-        html_body = build_email_html(digest, iso_date=iso_date)
-        html_file = DOCS_DIR / f"{iso_date}.html"
-        html_file.parent.mkdir(parents=True, exist_ok=True)
-        html_file.write_text(html_body)
-        log.info(f"Saved HTML: {html_file}")
-        
+
+        log.info(f"Generated digest with {len(digest.games)} games")
+
+        # Save cache and build pages
+        storage = StorageService(config.cache_dir, config.docs_dir)
+        storage.cache_digest(digest, iso_date)
+
+        # Build and save email HTML
+        email_builder = EmailBuilder()
+        html_body = email_builder.build(digest, iso_date=iso_date)
+
+        # Build and save page with navigation
+        page_builder = PageBuilder()
+        page_html = page_builder.build(digest, html_body, iso_date)
+        storage.save_page(page_html, iso_date)
+
         # Update index
-        update_index()
-        log.info("Updated index.html")
-        
+        index_builder = IndexBuilder(config.cache_dir, config.docs_dir)
+        index_html = index_builder.build()
+        storage.save_index(index_html)
+
         log.info("Done! Re-run completed successfully.")
         log.info(f"Files saved:")
-        log.info(f"  Cache: {cache_file}")
-        log.info(f"  HTML:  {html_file}")
-        
+        log.info(f"  Cache: cache/digest-{iso_date}.json")
+        log.info(f"  Page:  docs/{iso_date}.html")
+        log.info(f"  Index: docs/index.html")
+
     except Exception as e:
         log.error(f"Failed: {e}", exc_info=True)
         sys.exit(1)
