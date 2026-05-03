@@ -47,14 +47,76 @@ class IndexBuilder:
         tonight_html = ""  # Would be populated if applicable
         archive_html = self._build_archive(entries)
 
+        css = """<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #e8e3db;
+    color: #1a1a1a;
+    line-height: 1.6;
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 1em 0 0.5em 0;
+}
+
+h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin: 1em 0 0.5em 0;
+    color: #1a1a1a;
+}
+
+h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0.75em 0 0.5em 0;
+    color: #555;
+}
+
+p {
+    margin: 0.75em 0;
+    font-size: 1rem;
+}
+
+a {
+    color: #0066cc;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+a:hover {
+    text-decoration: underline;
+    color: #0052a3;
+}
+
+div {
+    max-width: 900px;
+    margin: 0 auto;
+}
+</style>"""
+
         return f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Digest Archive</title>
+    {css}
 </head>
-<body style="margin:0; padding:0; background-color:#e8e3db;">
-    <div style="max-width:900px; margin:0 auto;">
+<body>
+    <div>
         {standings_html}
         {hero_html}
         {tonight_html}
