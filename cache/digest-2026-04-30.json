@@ -1,41 +1,28 @@
 {
   "date": "2026-05-03",
   "round": "Second Round",
-  "main_headline": "Unable to retrieve live NBA playoff results for the night of May 2, 2026. Real-time game data was not accessible due to search unavailability.",
-  "sub_headline": "Digest could not be generated with verified scores \u2014 placeholder structure returned to maintain schema integrity.",
+  "main_headline": "Real-time game data for May 2, 2026 NBA playoff action was not available through live search retrieval. The digest below reflects a data-unavailable state rather than fabricated results.",
+  "sub_headline": "Search query for '2026-05-03 NBA playoff scores results standings highlights performances' returned no verified live data.",
   "games": [],
-  "active_series": [
-    {
-      "conference": "East",
-      "top_seed": 1,
-      "team1": "Data Unavailable",
-      "team1_wins": 0,
-      "team2": "Data Unavailable",
-      "team2_wins": 0
-    },
-    {
-      "conference": "West",
-      "top_seed": 1,
-      "team1": "Data Unavailable",
-      "team1_wins": 0,
-      "team2": "Data Unavailable",
-      "team2_wins": 0
-    }
-  ],
+  "active_series": [],
   "recaps": [
     {
-      "title": "Live Data Unavailable",
-      "body": "The Reddit fetch was unavailable and the supplemental web search for 'NBA playoff scores results standings highlights performances 2026-05-03' did not return verified real-time results. This digest cannot responsibly report scores, stats, or series standings without confirmed data. Please check ESPN.com, NBA.com, or the r/nba subreddit directly for accurate results from last night's games."
+      "title": "Data Unavailable \u2014 No Fabricated Results Provided",
+      "body": "A search was attempted for NBA playoff scores and results from the night of May 2, 2026. Live search retrieval was unsuccessful or returned no verifiable data for this date. Rather than generate fictional game scores, series leads, or player stat lines that could be mistaken for real outcomes, this digest is being returned with empty game and series data. Please check NBA.com, ESPN, or the official NBA app for confirmed results from last night's playoff games."
     }
   ],
   "headlines": [
     {
-      "bold_lead": "NO VERIFIED DATA:",
-      "body": "All game scores, player stats, and series updates for May 2, 2026 are unconfirmed. Fabricating results would be misleading \u2014 digest is intentionally left empty pending a live data source."
+      "bold_lead": "LIVE DATA UNAVAILABLE:",
+      "body": "No confirmed game scores or box score data could be retrieved for the night of Saturday, May 2, 2026. All playoff information should be verified through official NBA sources."
     },
     {
-      "bold_lead": "HOW TO GET RESULTS:",
-      "body": "Visit NBA.com/playoffs, ESPN's NBA scoreboard, or search r/nba on Reddit for community recaps and box scores from last night's playoff action."
+      "bold_lead": "WHY NO RESULTS?",
+      "body": "This assistant does not fabricate sports scores, player statistics, or series outcomes. Presenting invented data as real playoff results would be misleading. Data integrity is prioritized over producing a filled-in digest."
+    },
+    {
+      "bold_lead": "WHERE TO FIND REAL RESULTS:",
+      "body": "Visit NBA.com/playoffs, ESPN.com, or the NBA app for live and final scores, box scores, series standings, and highlight videos from last night's games."
     }
   ],
   "standout_performances": [],
