@@ -14,13 +14,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 os.chdir(Path(__file__).parent)
 
-# Import after path setup - use new modular structure
+# Import after path setup
 from nba_digest.config import Config
 from nba_digest.services.digest import DigestService
 from nba_digest.services.storage import StorageService
 from nba_digest.builders.email import EmailBuilder
 from nba_digest.builders.page import PageBuilder
-from nba_digest.builders.index import IndexBuilder
+
+# Use the original build_index_html function which has full standings/games
+# (IndexBuilder is still being completed)
+import nba_digest
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -70,9 +73,9 @@ def main():
         page_html = page_builder.build(digest, html_body, iso_date)
         storage.save_page(page_html, iso_date)
 
-        # Update index
-        index_builder = IndexBuilder(config.cache_dir, config.docs_dir)
-        index_html = index_builder.build()
+        # Update index using original build_index_html function
+        # (preserves playoff standings, hero section, tonight's games)
+        index_html = nba_digest.build_index_html()
         storage.save_index(index_html)
 
         log.info("Done! Re-run completed successfully.")
