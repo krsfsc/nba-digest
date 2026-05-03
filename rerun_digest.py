@@ -21,10 +21,6 @@ from nba_digest.services.storage import StorageService
 from nba_digest.builders.email import EmailBuilder
 from nba_digest.builders.page import PageBuilder
 
-# Use the original build_index_html function which has full standings/games
-# (IndexBuilder is still being completed)
-import nba_digest
-
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
@@ -73,10 +69,9 @@ def main():
         page_html = page_builder.build(digest, html_body, iso_date)
         storage.save_page(page_html, iso_date)
 
-        # Update index using original build_index_html function
-        # (preserves playoff standings, hero section, tonight's games)
-        index_html = nba_digest.build_index_html()
-        storage.save_index(index_html)
+        # Note: Index is NOT updated here to avoid missing playoff standings/games.
+        # The index is regenerated with full sections by the daily digest workflow.
+        # Re-runs only update the specific date's digest page and cache.
 
         log.info("Done! Re-run completed successfully.")
         log.info(f"Files saved:")
