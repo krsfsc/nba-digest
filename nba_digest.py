@@ -491,12 +491,12 @@ def build_email_html(d: dict, iso_date: str = "", tonight: list = None) -> str:
                                        margin:4px 0 0; font-style:italic;
                                        font-family:Helvetica,Arial,sans-serif;">
                                 {p.get("note", "")}</p>
-                            {f'''<a href="{p["highlight_url"]}" style="display:inline-block; margin-top:8px;
-                                       font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
-                                       color:{INK["textMuted"]}; text-decoration:none;
-                                       border:1px solid {INK["border"]}; border-radius:3px;
-                                       padding:3px 8px; font-family:Helvetica,Arial,sans-serif;">
-                                ▶ Highlights</a>''' if p.get("highlight_url") else ""}
+                            {(f'<a href="{p.get("highlight_url", "")}" style="display:inline-block; margin-top:8px;'
+                              f'font-size:10px; letter-spacing:1.5px; text-transform:uppercase;'
+                              f'color:{INK["textMuted"]}; text-decoration:none;'
+                              f'border:1px solid {INK["border"]}; border-radius:3px;'
+                              f'padding:3px 8px; font-family:Helvetica,Arial,sans-serif;">'
+                              f'▶ Highlights</a>') if p.get("highlight_url") else ""}
                         </td>
                     </tr>
                 </table>
