@@ -1,8 +1,8 @@
 {
   "date": "2026-05-03",
   "round": "Second Round",
-  "main_headline": "Search results for live NBA playoff data from May 2, 2026 were unavailable at time of generation. The structured digest below reflects a data-unavailable state rather than fabricated scores.",
-  "sub_headline": "Live game results, box scores, and fan sentiment from r/nba could not be retrieved for the night of May 2, 2026.",
+  "main_headline": "Real-time NBA playoff data for the night of May 2\u20133, 2026 could not be retrieved due to search and Reddit fetch unavailability. The digest below reflects a data-unavailable state rather than fabricated scores.",
+  "sub_headline": "No verified game results, box scores, or series updates could be confirmed for last night's playoff action.",
   "games": [],
   "active_series": [
     {
@@ -24,22 +24,26 @@
   ],
   "recaps": [
     {
-      "title": "Live Data Retrieval Failed",
-      "body": "An attempt was made to search for NBA playoff scores, results, standings, highlights, and performances for 2026-05-03. No verified game data was returned from the search. To avoid presenting fabricated scores or statistics, all game fields are left empty. Please check NBA.com, ESPN, or r/nba directly for accurate Second Round results from the night of May 2, 2026."
+      "title": "Search Unavailable \u2014 No Game Data Retrieved",
+      "body": "Attempts to search for NBA playoff scores, results, standings, highlights, and performances dated 2026-05-03 returned no usable data. The requested search query 'NBA playoff scores results standings highlights performances 2026-05-03' could not be executed against a live data source. Reddit fetch for r/nba fan sentiment and discourse was also unavailable. As a result, no game recaps, box scores, or series statuses can be reported with factual accuracy for the night of May 2, 2026."
+    },
+    {
+      "title": "Why This Digest Is Empty",
+      "body": "This system does not fabricate sports scores, statistics, or game outcomes. Presenting invented results as real playoff data would be misleading. Once live search access is restored or verified box score data is provided, a full structured digest including game scores, standout performances, series standings, and fan sentiment from r/nba can be generated accurately."
     }
   ],
   "headlines": [
     {
-      "bold_lead": "SEARCH UNAVAILABLE:",
-      "body": "Real-time web search did not return confirmed NBA playoff results for May 2, 2026. No scores, leaders, or series updates can be responsibly reported at this time."
+      "bold_lead": "DATA UNAVAILABLE:",
+      "body": "No live search results were returned for NBA playoff activity on the night of May 2\u20133, 2026. All fields requiring real game data are left empty to preserve accuracy."
     },
     {
-      "bold_lead": "REDDIT FETCH BLOCKED:",
-      "body": "r/nba fan sentiment and post-game discussion threads from last night were inaccessible. Community reactions, player grades, and hot-take discourse could not be captured."
+      "bold_lead": "REDDIT FETCH FAILED:",
+      "body": "r/nba community discourse and fan sentiment threads could not be accessed. Post-game reactions, player takes, and trending topics from the subreddit are unavailable for this digest."
     },
     {
-      "bold_lead": "DATA INTEGRITY NOTE:",
-      "body": "This digest intentionally contains no fabricated statistics. All standout performances, play-by-play moments, and series statuses require verified sourcing before publication."
+      "bold_lead": "ACTION REQUIRED:",
+      "body": "To generate a complete and accurate digest, please provide verified box score data, game results, or restore search tool access so live NBA playoff information can be retrieved and structured properly."
     }
   ],
   "standout_performances": [],
